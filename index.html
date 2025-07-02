@@ -31,7 +31,7 @@
 
   <script>
     // Path to your CSV file
-    const csvPath = 'data/program_data.csv';
+    const csvPath = 'data/program_data.csv'; // This path is correct as per user confirmation
 
     let rawData;
     let chart;
@@ -49,11 +49,15 @@
     });
 
     function initFilters() {
-      const cips = [...new Set(rawData.map(r => r.CIP_Code + ' - ' + r.Cert_Title))];
-      const insts = [...new Set(rawData.map(r => r.Institution))];
+      const cips = [...new Set(rawData.map(r => r.CIP + ' - ' + r.Program))].sort();
+      const insts = [...new Set(rawData.map(r => r.Institution1))].sort();
 
       const cipSelect = document.getElementById('cipFilter');
       const instSelect = document.getElementById('instFilter');
+
+      // Add a default "All" option
+      cipSelect.add(new Option('All Programs', ''));
+      instSelect.add(new Option('All Institutions', ''));
 
       cips.forEach(c => cipSelect.add(new Option(c, c)));
       insts.forEach(i => instSelect.add(new Option(i, i)));
@@ -63,25 +67,41 @@
     }
 
     function drawChart() {
-      const cip = document.getElementById('cipFilter').value;
-      const inst = document.getElementById('instFilter').value;
+      const selectedCipProgram = document.getElementById('cipFilter').value;
+      const selectedInstitution = document.getElementById('instFilter').value;
 
       // Filter data
       const filtered = rawData.filter(r =>
-        (!cip || (r.CIP_Code + ' - ' + r.Cert_Title) === cip) &&
-        (!inst || r.Institution === inst)
+        (!selectedCipProgram || (r.CIP + ' - ' + r.Program) === selectedCipProgram) &&
+        (!selectedInstitution || r.Institution1 === selectedInstitution)
       );
 
-      // Group by Year
-      const years = [...new Set(filtered.map(r => r.Year))].sort((a,b) => a - b);
-      const enrollment = years.map(y => {
-        const rec = filtered.find(r => r.Year === y);
-        return rec ? rec.Enrollment : null;
+      // Group by Year (semester1)
+      // Assuming semester1 is in a format like "2014-2015", we'll use it directly or extract the first year part.
+      // For simplicity, let's use semester1 directly as the label.
+      const years = [...new Set(filtered.map(r => r.semester1))].sort();
+
+      const enrollment = years.map(yearLabel => {
+        let totalEnrollment = 0;
+        filtered.filter(r => r.semester1 === yearLabel).forEach(r => {
+          if (r.ECount !== null && r.ECount !== undefined && r.ECount !== '') {
+            totalEnrollment += Number(r.ECount);
+          }
+        });
+        return totalEnrollment;
       });
-      const graduates = years.map(y => {
-        const rec = filtered.find(r => r.Year === y);
-        return rec ? rec.Graduated : null;
+
+      const graduates = years.map(yearLabel => {
+        let totalGraduates = 0;
+        filtered.filter(r => r.semester1 === yearLabel).forEach(r => {
+          if (r.GCount !== null && r.GCount !== undefined && r.GCount !== '') {
+            totalGraduates += Number(r.GCount);
+          }
+        });
+        return totalGraduates;
       });
+
+      const chartTitle = `${selectedCipProgram || 'All Programs'} @ ${selectedInstitution || 'All Institutions'}`;
 
       const ctx = document.getElementById('timeChart').getContext('2d');
 
@@ -112,13 +132,14 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
-            title: { display: true, text: cip + ' @ ' + inst },
+            title: { display: true, text: chartTitle },
             tooltip: { mode: 'index', intersect: false }
           },
           interaction: { mode: 'nearest', axis: 'x', intersect: false },
           scales: {
-            x: { title: { display: true, text: 'Year' } },
+            x: { title: { display: true, text: 'Semester Year' } },
             y: { title: { display: true, text: 'Count' }, beginAtZero: true }
           }
         }
