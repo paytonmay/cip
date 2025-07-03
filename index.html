@@ -103,6 +103,18 @@
 
       const chartTitle = `${selectedCipProgram || 'All Programs'} @ ${selectedInstitution || 'All Institutions'}`;
 
+      // Calculate dynamic Y-axis range
+      const allValues = enrollment.concat(graduates).filter(v => v !== null && !isNaN(v));
+      let yMin = 0; // Always start at 0 for counts
+      let yMax = Math.max(...allValues);
+
+      if (allValues.length === 0 || yMax === 0) { // Handle empty data or all zero values
+        yMax = 10; // Default max if no data or all zeros
+      } else {
+        yMax = yMax * 1.1; // Add 10% padding to the max value
+      }
+
+
       const ctx = document.getElementById('timeChart').getContext('2d');
 
       if (chart) {
@@ -140,7 +152,12 @@
           interaction: { mode: 'nearest', axis: 'x', intersect: false },
           scales: {
             x: { title: { display: true, text: 'Semester Year' } },
-            y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+            y: {
+              title: { display: true, text: 'Count' },
+              beginAtZero: true,
+              suggestedMin: yMin,
+              suggestedMax: yMax
+            }
           }
         }
       });
